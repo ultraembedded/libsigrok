@@ -45,7 +45,7 @@ struct dev_context {
 	uint32_t num_channels;
 
 	uint64_t num_samples;
-	uint32_t *data_buf;
+	void     *data_buf;
 	uint32_t data_pos;
 
 	uint16_t seq_num;
@@ -60,5 +60,6 @@ SR_PRIV int openlb_convert_triggers(const struct sr_dev_inst *sdi);
 SR_PRIV int openlb_close(struct dev_context *devc);
 SR_PRIV int openlb_start_acquisition(struct dev_context *devc);
 SR_PRIV int openlb_receive_data(int fd, int revents, void *cb_data);
+SR_PRIV int openlb_unitsize(const struct dev_context *devc);
 
 #endif

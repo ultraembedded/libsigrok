@@ -161,8 +161,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 
 	devc = g_malloc0(sizeof(struct dev_context));
 
-	/* Allocate memory for the incoming data. */
-	devc->data_buf      = g_malloc0(DATA_BUF_SIZE * sizeof(uint32_t));
+	devc->data_buf      = NULL;
 	devc->data_pos      = 0;
 	devc->num_samples   = 0;
 	devc->sample_rate   = SR_MHZ(100);
@@ -171,7 +170,7 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 
 	if (!(devc->ftdic = ftdi_new())) {
 		sr_err("Failed to initialize libftdi.");
-		goto err_free_sample_buf;
+		return NULL;
 	}
 
 	target = NULL;
@@ -230,13 +229,15 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 		for (i = 0; i < devc->num_channels; i++)
 			sr_channel_new(sdi, i, SR_CHANNEL_LOGIC, TRUE, channel_names[i]);
 
+		/* Now that we know the number of channels, allocate memory for
+		   the incoming data. */
+		devc->data_buf = g_malloc0(DATA_BUF_SIZE *
+					   openlb_unitsize(devc));
 		return std_scan_complete(di, g_slist_append(NULL, sdi));
 	}
 
 err_free_ftdic:
 	ftdi_free(devc->ftdic);
-err_free_sample_buf:
-	g_free(devc->data_buf);
 	g_free(devc);
 
 	return NULL;
