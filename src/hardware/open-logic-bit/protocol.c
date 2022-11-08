@@ -355,6 +355,11 @@ static int openlb_read_block(struct dev_context *devc, uint32_t addr, uint8_t *d
 	return SR_OK;
 }
 
+int openlb_unitsize(const struct dev_context *devc)
+{
+	return (devc->num_channels + 7) >> 3;
+}
+
 /**
  * Pass sample buffer to libsigrok core.
  *
@@ -373,7 +378,7 @@ static void openlb_send_samples(struct sr_dev_inst *sdi, uint32_t samples_to_sen
 
 	packet.type    = SR_DF_LOGIC;
 	packet.payload = &logic;
-	logic.unitsize = 4;
+	logic.unitsize = openlb_unitsize(devc);
 	logic.length   = samples_to_send * logic.unitsize;
 	logic.data     = devc->data_buf;
 
@@ -393,6 +398,9 @@ static void openlb_send_samples(struct sr_dev_inst *sdi, uint32_t samples_to_sen
 static void openlb_push_sample(struct sr_dev_inst *sdi, uint32_t sample, int flush)
 {
 	struct dev_context *devc = sdi->priv;
+	unsigned int unitsize = openlb_unitsize(devc);
+	uint8_t *tmp;
+
 
 	if (devc->data_pos == (DATA_BUF_SIZE-1))
 		flush = 1;
@@ -403,10 +411,29 @@ static void openlb_push_sample(struct sr_dev_inst *sdi, uint32_t sample, int flu
 		devc->data_pos = 0;
 	}
 
-	if (devc->num_samples < devc->limit_samples) {
-		devc->data_buf[devc->data_pos++] = sample;
-		devc->num_samples++;
+	if (devc->num_samples >= devc->limit_samples)
+		return;
+
+	tmp = (uint8_t *)devc->data_buf + (devc->data_pos * unitsize);
+
+	switch (unitsize) {
+	case 4:
+		*(uint32_t *)(tmp) = sample;
+		break;
+	case 3:
+		/* we have assumed little-endian encoding elsewhere... */
+		*(uint8_t  *)(tmp + 2) = sample >> 16 & 0xff;
+		*(uint16_t *)(tmp + 0) = sample >> 0 & 0xffff;
+		break;
+	case 2:
+		*(uint16_t *)(tmp) = sample & 0xffff;
+		break;
+	case 1:
+		*tmp = sample & 0xff;
+		break;
 	}
+	devc->num_samples++;
+	devc->data_pos++;
 }
 
 /**
