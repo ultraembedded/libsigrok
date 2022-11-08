@@ -636,7 +636,7 @@ SR_PRIV int openlb_receive_data(int fd, int revents, void *cb_data)
 	uint32_t *sample_buf = (uint32_t *)data;
 	for (uint32_t i=0; i<size/4; i++) {
 		uint16_t repeats = (devc->num_channels == 32) ? 1 : sample_buf[i] >> devc->num_channels;
-		uint32_t value   = sample_buf[i] >> 0;
+		uint32_t value   = sample_buf[i] & ((1 << devc->num_channels) - 1);
 
 		for (uint16_t j=0;j<repeats;j++)
 			openlb_push_sample(sdi, value, (j == (repeats -1)) && (i == ((size/4)-1)));
